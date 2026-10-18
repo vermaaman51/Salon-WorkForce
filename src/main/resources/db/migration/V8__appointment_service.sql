@@ -1,0 +1,1 @@
+ALTER TABLE orders ADD COLUMN service VARCHAR(255);
