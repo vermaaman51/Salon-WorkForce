@@ -141,7 +141,21 @@ class AdminManagementTests {
   mvc.perform(get("/api/admin/managers").with(user(otherAdmin.toString()).roles("ADMIN"))).andExpect(jsonPath("$",hasSize(0)));
   mvc.perform(delete("/api/admin/managers/"+id).with(user(otherAdmin.toString()).roles("ADMIN")).with(csrf())).andExpect(status().isNotFound());
   mvc.perform(delete("/api/admin/managers/"+id).with(user(admin.toString()).roles("ADMIN")).with(csrf())).andExpect(status().isOk());
+  assertThat(db.queryForObject("SELECT count(*) FROM users WHERE email='manager@example.test'",Long.class)).isZero();
+  mvc.perform(post("/login").with(csrf()).param("mobileNo","9616543935").param("password","manager-test-password")).andExpect(redirectedUrl("/login?error"));
   mvc.perform(delete("/api/admin/stores/"+store).with(user(admin.toString()).roles("ADMIN")).with(csrf())).andExpect(status().isOk());
+ }
+ @Test void deletingManagerPreservesUserAssignedToAnotherTenant() throws Exception {
+  mvc.perform(post("/api/admin/managers").with(user(admin.toString()).roles("ADMIN")).with(csrf()).contentType("application/json").content(managerBody(store))).andExpect(status().isCreated());
+  UUID uid=db.queryForObject("SELECT id FROM users WHERE email='manager@example.test'",UUID.class);
+  UUID assignment=db.queryForObject("SELECT id FROM user_role WHERE user_id=?",UUID.class,uid);
+  UUID role=db.queryForObject("SELECT role_id FROM user_role WHERE id=?",UUID.class,assignment);
+  UUID foreignAssignment=UUID.randomUUID();
+  db.update("INSERT INTO user_role(id,user_id,role_id,store_id,tenant_id) VALUES (?,?,?,?,?)",foreignAssignment,uid,role,foreignStore,otherTenant);
+  mvc.perform(delete("/api/admin/managers/"+assignment).with(user(admin.toString()).roles("ADMIN")).with(csrf())).andExpect(status().isOk());
+  assertThat(db.queryForObject("SELECT count(*) FROM user_role WHERE id=?",Long.class,assignment)).isZero();
+  assertThat(db.queryForObject("SELECT count(*) FROM user_role WHERE id=?",Long.class,foreignAssignment)).isEqualTo(1);
+  assertThat(db.queryForObject("SELECT count(*) FROM users WHERE id=?",Long.class,uid)).isEqualTo(1);
  }
  @Test void nonAdminCannotAccessAdminFeatures() throws Exception {
   mvc.perform(get("/api/admin/stores")).andExpect(status().isUnauthorized());

@@ -46,6 +46,10 @@ version. Empty databases run all seven final definitions automatically.
 - **Receptionist:** customer queries, appointments, assignment, checkout and payments.
 - **Expert:** staff identity and appointment assignee; no dedicated workspace yet.
 
+Deleting a store manager removes its `user_role` assignment and deletes the `users`
+record when no other assignments remain. Accounts shared with another role, store or
+tenant are preserved. Both steps run in one transaction.
+
 Admin reports default to today and All stores. From/To searches allow dates within the
 past calendar month through today, with a maximum range of 30 inclusive calendar days.
 The business timezone uses `TZ`, default `Asia/Kolkata`. Reports use appointment dates

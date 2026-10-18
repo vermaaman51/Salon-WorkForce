@@ -88,4 +88,7 @@ public class AdminRepository {
     public int deleteManagerAssignment(UUID assignmentId, UUID tenantId) {
         return db.update("DELETE FROM user_role WHERE id=? AND tenant_id=?", assignmentId, tenantId);
     }
+    public int deleteUnassignedUser(UUID userId) {
+        return db.update("DELETE FROM users WHERE id=? AND NOT EXISTS (SELECT 1 FROM user_role WHERE user_id=?)", userId, userId);
+    }
 }

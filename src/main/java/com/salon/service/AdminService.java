@@ -127,8 +127,9 @@ public class AdminService {
     @Transactional
     public void deleteManager(Authentication auth,UUID id) {
         UUID t=tenant(auth);
-        manager(id,t);
+        UUID user=(UUID)manager(id,t).get("user_id");
         repository.deleteManagerAssignment(id, t);
+        repository.deleteUnassignedUser(user);
     }
 }
 
