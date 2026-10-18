@@ -14,6 +14,7 @@ CREATE TABLE order_history (
  customer_mobile VARCHAR(16) NOT NULL,
  details VARCHAR(2000) NOT NULL,
  service VARCHAR(255),
+ payment_mode VARCHAR(10) CHECK(payment_mode IN ('CASH','UPI')),
  amount NUMERIC(12,2) NOT NULL,
  appointment_at TIMESTAMP,
  created_at TIMESTAMP
@@ -21,5 +22,7 @@ CREATE TABLE order_history (
 CREATE INDEX order_history_order_idx ON order_history(order_id,history_sequence);
 CREATE INDEX order_history_tenant_store_idx ON order_history(tenant_id,store_id,snapshot_at);
 -- No foreign keys: snapshots survive deletion of the order and its related records.
-INSERT INTO order_history(order_id,event_type,tenant_id,store_id,assignee,order_type,order_status,payment_status,customer_name,customer_mobile,details,service,amount,appointment_at,created_at)
-SELECT id,'BASELINE',tenant_id,store_id,assignee,order_type,order_status,payment_status,customer_name,customer_mobile,details,service,amount,appointment_at,created_at FROM orders;
+
+-- Test-only equivalent of the PostgreSQL trigger functions.
+CREATE TRIGGER orders_history_capture AFTER INSERT, UPDATE, DELETE ON orders FOR EACH ROW CALL 'com.salon.OrderHistoryTestTrigger';
+CREATE TRIGGER order_history_immutable BEFORE UPDATE, DELETE ON order_history FOR EACH ROW CALL 'com.salon.OrderHistoryTestTrigger';

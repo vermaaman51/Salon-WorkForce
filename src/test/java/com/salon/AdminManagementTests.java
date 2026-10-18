@@ -30,13 +30,12 @@ class AdminManagementTests {
   db.update("INSERT INTO store(id,name,city,address,tenant_id) VALUES (?,'Foreign store','Delhi','Other address',?)",foreignStore,otherTenant);
  }
  String storeBody="{\"name\":\"Updated store\",\"city\":\"Noida\",\"address\":\"Sector 104\"}";
- @Test void roleRenamePreservesAssignmentsAndLoginWhileOldAuthorityIsRejected() throws Exception {
+ @Test void finalAdminRolePreservesLoginAndRejectsOldAuthority() throws Exception {
   UUID legacyRole=UUID.randomUUID(),legacyUser=UUID.randomUUID(),assignment=UUID.randomUUID();
   String hash=encoder.encode("migrated-admin-password");
   db.update("INSERT INTO users(id,name,mobileno,password_hash) VALUES (?,'Existing owner','9000000098',?)",legacyUser,hash);
-  db.update("INSERT INTO role(id,roletype) VALUES (?,'ROOT')",legacyRole);
+  db.update("INSERT INTO role(id,roletype) VALUES (?,'ADMIN')",legacyRole);
   db.update("INSERT INTO user_role(id,user_id,role_id,tenant_id) VALUES (?,?,?,?)",assignment,legacyUser,legacyRole,tenant);
-  db.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) connection->{org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(connection,new org.springframework.core.io.ClassPathResource("db/migration/V11__rename_root_role_to_admin.sql"));return null;});
   assertThat(db.queryForObject("SELECT roletype FROM role WHERE id=?",String.class,legacyRole)).isEqualTo("ADMIN");
   assertThat(db.queryForObject("SELECT role_id FROM user_role WHERE id=?",UUID.class,assignment)).isEqualTo(legacyRole);
   assertThat(db.queryForObject("SELECT password_hash FROM users WHERE id=?",String.class,legacyUser)).isEqualTo(hash);

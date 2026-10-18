@@ -1,5 +1,3 @@
-ALTER TABLE store ADD CONSTRAINT store_id_tenant_unique UNIQUE(id,tenant_id);
-ALTER TABLE user_role ADD CONSTRAINT user_role_scope_unique UNIQUE(id,store_id,tenant_id);
 CREATE TABLE orders (
  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
  tenant_id UUID NOT NULL REFERENCES tenant(id),
@@ -11,6 +9,8 @@ CREATE TABLE orders (
  customer_name VARCHAR(255) NOT NULL,
  customer_mobile VARCHAR(16) NOT NULL,
  details VARCHAR(2000) NOT NULL,
+ service VARCHAR(255),
+ payment_mode VARCHAR(10) CHECK(payment_mode IN ('CASH','UPI')),
  amount NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK(amount>=0),
  appointment_at TIMESTAMP,
  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

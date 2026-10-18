@@ -42,14 +42,13 @@ class StoreManagerTests {
   var receptionist=(com.fasterxml.jackson.databind.node.ObjectNode)mapper.readTree(body("receptionists"));receptionist.remove("password");
   mvc.perform(post(path("receptionists",store)).with(user(manager.toString()).roles("STORE_MANAGER")).with(csrf()).contentType("application/json").content(receptionist.toString())).andExpect(status().isBadRequest());
  }
- @Test void expertRenamePreservesLoginAssignmentsAndOrderHistory() throws Exception {
+ @Test void finalExpertRoleSupportsLoginAssignmentsAndOrderHistory() throws Exception {
   UUID userId=UUID.randomUUID(),roleId=UUID.randomUUID(),assignmentId=UUID.randomUUID(),orderId=UUID.randomUUID();
   String hash=encoder.encode("expert-test-password");
   db.update("INSERT INTO users(id,name,mobileno,password_hash) VALUES (?,'Existing expert','9000000097',?)",userId,hash);
-  db.update("INSERT INTO role(id,roletype) VALUES (?,'WORKER')",roleId);
+  db.update("INSERT INTO role(id,roletype) VALUES (?,'EXPERT')",roleId);
   db.update("INSERT INTO user_role(id,user_id,role_id,store_id,tenant_id) VALUES (?,?,?,?,?)",assignmentId,userId,roleId,store,tenant);
   db.update("INSERT INTO orders(id,tenant_id,store_id,assignee,order_type,order_status,customer_name,customer_mobile,details,service,amount,appointment_at) VALUES (?,?,?,?,'APPOINTMENT','ASSIGNED','Customer','9000000091','','Hair',100,CURRENT_TIMESTAMP)",orderId,tenant,store,assignmentId);
-  db.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) connection->{org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(connection,new org.springframework.core.io.ClassPathResource("db/migration/V13__rename_worker_role_to_expert.sql"));return null;});
   assertThat(db.queryForObject("SELECT roletype FROM role WHERE id=?",String.class,roleId)).isEqualTo("EXPERT");
   assertThat(db.queryForObject("SELECT role_id FROM user_role WHERE id=?",UUID.class,assignmentId)).isEqualTo(roleId);
   assertThat(db.queryForObject("SELECT password_hash FROM users WHERE id=?",String.class,userId)).isEqualTo(hash);

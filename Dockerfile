@@ -11,4 +11,4 @@ COPY --from=build --chown=salon:salon /build/target/salon-workforce-1.0.0.jar ap
 USER salon
 ENV SPRING_PROFILES_ACTIVE=prod
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-Duser.timezone=UTC", "-jar", "/app/app.jar"]
