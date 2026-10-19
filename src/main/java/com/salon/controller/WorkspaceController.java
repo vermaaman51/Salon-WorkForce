@@ -41,7 +41,7 @@ public class WorkspaceController {
         return html("manager.html");
     }
     @GetMapping("/manager/appointments")
-    @ResponseBody ResponseEntity<Resource> managerAppointments() { return html("manager-appointments.html"); }
+    @ResponseBody ResponseEntity<Resource> managerAppointments() { return html("manager.html"); }
     @GetMapping("/reception/dashboard")
     @ResponseBody ResponseEntity<Resource> receptionDashboard() {
         return html("reception.html");

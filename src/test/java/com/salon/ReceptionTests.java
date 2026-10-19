@@ -117,7 +117,7 @@ class ReceptionTests {
  }
  @Test void routesReceptionAndRejectsOtherRolesAndMissingCsrf() throws Exception {
   mvc.perform(get("/workspace").with(user(reception.toString()).roles("RECEPTIONIST"))).andExpect(redirectedUrl("/reception/dashboard"));
-  mvc.perform(get("/reception/dashboard").with(user(reception.toString()).roles("RECEPTIONIST"))).andExpect(status().isOk()).andExpect(content().string(containsString("Checkout &amp; payments")));
+  mvc.perform(get("/reception/dashboard").with(user(reception.toString()).roles("RECEPTIONIST"))).andExpect(status().isOk()).andExpect(content().string(containsString("data-view=\"appointments\"")));
   mvc.perform(get("/api/reception/orders?storeId="+store)).andExpect(status().isUnauthorized());
   for(String role:new String[]{"ADMIN","STORE_MANAGER","EXPERT"})mvc.perform(post("/api/reception/orders?storeId="+store).with(user(reception.toString()).roles(role)).with(csrf()).contentType("application/json").content(input("QUERY"))).andExpect(status().isForbidden());
   mvc.perform(post("/api/reception/orders?storeId="+store).with(user(reception.toString()).roles("RECEPTIONIST")).contentType("application/json").content(input("QUERY"))).andExpect(status().isForbidden());

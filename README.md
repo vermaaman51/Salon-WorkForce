@@ -149,10 +149,25 @@ implemented. PostgreSQL backups should be retained separately from the applicati
 
 ## Platform owner and subscriptions
 
-ROOT is a singleton platform account, separate from tenant Admins. On first startup,
-set `ROOT_MOBILE` (10 digits) and `ROOT_PASSWORD` (12+ characters, at most 72 UTF-8
-bytes). Startup creates it once and never resets its password. Local launches read
-these values from `.local/root-credentials.json`. Keep this file private.
+ROOT is a singleton platform account, separate from tenant Admins. Create it directly
+in PostgreSQL; the application does not create ROOT accounts or read ROOT credentials
+from environment variables. Supply a 10-digit mobile number and a BCrypt password
+hash (not a plaintext password) in the following SQL:
+
+```sql
+BEGIN;
+WITH owner AS (
+    INSERT INTO users (id, name, mobileno, password_hash)
+    VALUES (gen_random_uuid(), 'Platform owner', '<10-digit mobile>', '<BCrypt password hash>')
+    RETURNING id
+)
+INSERT INTO platform_root (singleton, user_id)
+SELECT 1, id FROM owner;
+COMMIT;
+```
+
+Run this only when no ROOT account exists. The singleton constraint permits one
+ROOT account. Existing ROOT accounts and passwords remain unchanged on startup.
 Sign in normally; ROOT opens `/root` to create/update tenants, set expiry, enable or
 disable access, and create/edit/remove tenant Admin access.
 

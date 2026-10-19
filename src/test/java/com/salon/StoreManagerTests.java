@@ -30,6 +30,11 @@ class StoreManagerTests {
  String body(String category){return "{\"name\":\"Staff One\",\"email\":\""+category+"@example.test\",\"mobileNo\":\""+(category.equals("experts")?"9000000052":"9000000053")+"\",\"address\":\"Noida\",\"password\":\"staff-test-password\"}";}
  String path(String category,UUID selected){return "/api/manager/"+category+"?storeId="+selected;}
  UUID assignment(String category){return db.queryForObject("SELECT ur.id FROM user_role ur JOIN users u ON u.id=ur.user_id WHERE u.email=?",UUID.class,category+"@example.test");}
+ @Test void managerDashboardAndAppointmentRouteUseTheSameWorkspace() throws Exception {
+  String dashboard=mvc.perform(get("/manager/dashboard").with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+  String appointments=mvc.perform(get("/manager/appointments").with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+  assertThat(appointments).isEqualTo(dashboard).contains("data-view=\"appointments\"","/js/reception.js","id=\"staff-editor-form\"","id=\"appointments-view\"");
+ }
  @Test void expertCanBeCreatedAndEditedWithoutPasswordButReceptionistRequiresOne() throws Exception {
   var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
   var expert=(com.fasterxml.jackson.databind.node.ObjectNode)mapper.readTree(body("experts"));expert.remove("password");

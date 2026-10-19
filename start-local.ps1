@@ -16,12 +16,6 @@ if ($LASTEXITCODE -ne 0) {
     & "$pgBin\pg_ctl.exe" -D $data -l (Join-Path $localDir 'postgres.log') -o '-p 5433 -h 127.0.0.1' -w start
     if ($LASTEXITCODE -ne 0) { throw 'Local PostgreSQL startup failed. See .local/postgres.log.' }
 }
-$rootCredentials = Join-Path $localDir 'root-credentials.json'
-if (Test-Path $rootCredentials) {
-    $rootSettings = Get-Content $rootCredentials -Raw | ConvertFrom-Json
-    $env:ROOT_MOBILE = $rootSettings.ROOT_MOBILE
-    $env:ROOT_PASSWORD = $rootSettings.ROOT_PASSWORD
-}
 $env:PORT = '8080'
 $env:SPRING_PROFILES_ACTIVE = 'local'
 try {
