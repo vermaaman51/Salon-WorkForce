@@ -1,0 +1,4 @@
+ALTER TABLE tenant ADD COLUMN _is_active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE tenant ADD COLUMN segment_type VARCHAR(20) NOT NULL DEFAULT 'BASE' CHECK (segment_type IN ('BASE','PRO','PRO_PLUS'));
+ALTER TABLE tenant ADD COLUMN subscription_expires_at TIMESTAMP WITH TIME ZONE;
+CREATE TABLE platform_root (singleton INTEGER PRIMARY KEY CHECK (singleton=1), user_id UUID NOT NULL UNIQUE REFERENCES users(id));

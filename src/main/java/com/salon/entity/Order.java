@@ -30,6 +30,9 @@ public enum OrderStatus { PENDING, ASSIGNED, COMPLETED }
 
     @Enumerated(EnumType.STRING) @Column(name="payment_status",nullable=false,length=20)
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;
+    @Column(name="payment_completed_at",insertable=false,updatable=false)
+    private java.time.OffsetDateTime paymentCompletedAt;
+    public java.time.OffsetDateTime getPaymentCompletedAt(){return paymentCompletedAt;}
 
     @Enumerated(EnumType.STRING) @Column(name="payment_mode",length=10)
     private PaymentMode paymentMode;
@@ -55,6 +58,8 @@ public enum OrderStatus { PENDING, ASSIGNED, COMPLETED }
     @Column(name="created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name="modified_at",insertable=false,updatable=false) private java.time.OffsetDateTime modifiedAt;
+    public java.time.OffsetDateTime getModifiedAt(){return modifiedAt;}
     public Order(){}
     public UUID getId(){return id;}
     public void setId(UUID id){this.id=id;}

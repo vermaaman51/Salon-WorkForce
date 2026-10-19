@@ -20,8 +20,14 @@ public class StoreManagerController {
         return service.session(auth);
     }
     @GetMapping("/orders")
-    public Object orders(Authentication auth,@RequestParam UUID storeId) {
-        return service.orders(auth, storeId);
+    public Object orders(Authentication auth,@RequestParam UUID storeId,@ModelAttribute com.salon.repository.OrderPages.Query query) {
+        return service.orders(auth, storeId,query);
+    }
+    @GetMapping("/sales")
+    public Object sales(Authentication auth,@RequestParam UUID storeId,@ModelAttribute com.salon.repository.OrderPages.Query query,
+        @RequestParam(required=false) @org.springframework.format.annotation.DateTimeFormat(iso=org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+        @RequestParam(required=false) @org.springframework.format.annotation.DateTimeFormat(iso=org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return service.sales(auth,storeId,query,from,to);
     }
     @GetMapping("/{category:receptionists|experts}")
     public Object list(Authentication auth,@PathVariable String category,@RequestParam UUID storeId) {

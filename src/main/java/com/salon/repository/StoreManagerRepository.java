@@ -26,13 +26,10 @@ public class StoreManagerRepository {
         return db.queryForMap("SELECT name,email FROM users WHERE id=?", userId);
     }
     public List<Map<String,Object>> findAssignedStores(UUID userId) {
-        return db.queryForList("SELECT DISTINCT s.id,s.name,s.city,t.tenant_name FROM user_role ur JOIN role r ON r.id=ur.role_id JOIN store s ON s.id=ur.store_id AND s.tenant_id=ur.tenant_id JOIN tenant t ON t.id=s.tenant_id WHERE ur.user_id=? AND r.roletype='STORE_MANAGER' ORDER BY s.name,s.id", userId);
+        return db.queryForList("SELECT DISTINCT s.id,s.name,s.city,t.tenant_name,t.segment_type FROM user_role ur JOIN role r ON r.id=ur.role_id JOIN store s ON s.id=ur.store_id AND s.tenant_id=ur.tenant_id JOIN tenant t ON t.id=s.tenant_id WHERE ur.user_id=? AND r.roletype='STORE_MANAGER' ORDER BY s.name,s.id", userId);
     }
     public List<Map<String,Object>> findStaff(UUID storeId, UUID tenantId, String role) {
         return db.queryForList("SELECT ur.id,u.name,u.email,u.mobileno AS mobile_no,u.address FROM user_role ur JOIN role r ON r.id=ur.role_id JOIN users u ON u.id=ur.user_id WHERE ur.store_id=? AND ur.tenant_id=? AND r.roletype=? ORDER BY u.name,ur.id", storeId, tenantId, role);
-    }
-    public List<Map<String,Object>> findOrders(UUID storeId, UUID tenantId) {
-        return db.queryForList("SELECT id,customer_name,service AS service_name,amount,order_status,payment_status,assignee FROM orders WHERE store_id=? AND tenant_id=? AND order_type='APPOINTMENT' ORDER BY created_at DESC,id", storeId, tenantId);
     }
     public int insertUser(UUID id, String name, String email, String mobile, String address, String passwordHash) {
         return db.update("INSERT INTO users(id,name,email,mobileno,address,password_hash) VALUES (?,?,?,?,?,?)", id, name, email, mobile, address, passwordHash);

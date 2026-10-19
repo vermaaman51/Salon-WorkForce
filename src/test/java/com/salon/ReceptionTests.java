@@ -81,7 +81,7 @@ class ReceptionTests {
   assertThat(row.get("service")).isEqualTo("Hair, Nail");
   assertThat(row.get("details")).isEqualTo("Customer prefers a short cut");
   assertThat(db.queryForObject("SELECT appointment_at FROM orders WHERE store_id=?",java.time.LocalDateTime.class,store)).isEqualTo(java.time.LocalDateTime.of(2026,10,20,11,0));
-  mvc.perform(get("/api/reception/orders?storeId="+store).with(user(reception.toString()).roles("RECEPTIONIST"))).andExpect(jsonPath("$[0].service").value("Hair, Nail")).andExpect(jsonPath("$[0].details").value("Customer prefers a short cut"));
+  mvc.perform(get("/api/reception/orders?storeId="+store).with(user(reception.toString()).roles("RECEPTIONIST"))).andExpect(jsonPath("$.items[0].service").value("Hair, Nail")).andExpect(jsonPath("$.items[0].details").value("Customer prefers a short cut"));
   for(String invalid:new String[]{"","Unknown","Hair,","Hair, Unknown"}) mvc.perform(post("/api/reception/orders?storeId="+store).with(user(reception.toString()).roles("RECEPTIONIST")).with(csrf()).contentType("application/json").content(input("APPOINTMENT").replace("Hair, Nail",invalid))).andExpect(status().isBadRequest());
   mvc.perform(post("/api/reception/orders?storeId="+store).with(user(reception.toString()).roles("RECEPTIONIST")).with(csrf()).contentType("application/json").content(input("APPOINTMENT").replace("\"service\":\"Hair, Nail\",",""))).andExpect(status().isBadRequest());
  }
@@ -96,7 +96,7 @@ class ReceptionTests {
   mvc.perform(patch(path(id,"assign")).with(user(reception.toString()).roles("RECEPTIONIST")).with(csrf()).contentType("application/json").content("{\"assignee\":\""+expert+"\"}")).andExpect(status().isConflict());
   mvc.perform(patch(path(id,"payment")).with(user(reception.toString()).roles("RECEPTIONIST")).with(csrf()).contentType("application/json").content("{\"paymentMode\":\"UPI\"}")).andExpect(status().isOk());
   assertThat(db.queryForObject("SELECT order_status FROM orders WHERE id=?",String.class,id)).isEqualTo("COMPLETED");assertThat(db.queryForObject("SELECT payment_status FROM orders WHERE id=?",String.class,id)).isEqualTo("COMPLETED");
-  mvc.perform(get("/api/reception/orders?storeId="+store).with(user(reception.toString()).roles("RECEPTIONIST"))).andExpect(jsonPath("$[0].assignee").value(expert.toString())).andExpect(jsonPath("$[0].amount").value(1250.50));
+  mvc.perform(get("/api/reception/orders?storeId="+store).with(user(reception.toString()).roles("RECEPTIONIST"))).andExpect(jsonPath("$.items[0].assignee").value(expert.toString())).andExpect(jsonPath("$.items[0].amount").value(1250.50));
  }
  @Test void queriesResolveWithoutExpertAndPaidCheckoutWorks() throws Exception {
   UUID query=create("QUERY");

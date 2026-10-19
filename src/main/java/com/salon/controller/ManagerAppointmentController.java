@@ -24,8 +24,8 @@ public class ManagerAppointmentController {
         return service.managerExperts(auth, storeId);
     }
     @GetMapping("/orders")
-    public Object orders(Authentication auth,@RequestParam UUID storeId) {
-        return service.managerOrders(auth, storeId);
+    public Object orders(Authentication auth,@RequestParam UUID storeId,@ModelAttribute com.salon.repository.OrderPages.Query query) {
+        return service.managerOrders(auth, storeId,query);
     }
     @PostMapping("/orders")
     @ResponseStatus(HttpStatus.CREATED)

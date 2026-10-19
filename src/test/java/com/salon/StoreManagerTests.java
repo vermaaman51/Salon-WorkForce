@@ -69,7 +69,7 @@ class StoreManagerTests {
   mvc.perform(get("/api/manager/appointments/experts?storeId="+store).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(jsonPath("$[0].id").value(expert.toString()));
   mvc.perform(post("/api/manager/appointments/orders?storeId="+store).with(user(manager.toString()).roles("STORE_MANAGER")).with(csrf()).contentType("application/json").content(appointmentBody)).andExpect(status().isCreated());
   UUID id=db.queryForObject("SELECT id FROM orders WHERE store_id=?",UUID.class,store);
-  mvc.perform(get("/api/manager/appointments/orders?storeId="+store).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(jsonPath("$",hasSize(1)));
+  mvc.perform(get("/api/manager/appointments/orders?storeId="+store).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(jsonPath("$.items",hasSize(1)));
   mvc.perform(patch(appointmentPath(id,"checkout")).with(user(manager.toString()).roles("STORE_MANAGER")).with(csrf()).contentType("application/json").content("{\"paymentStatus\":\"PENDING\"}")).andExpect(status().isConflict());
   mvc.perform(patch(appointmentPath(id,"assign")).with(user(manager.toString()).roles("STORE_MANAGER")).with(csrf()).contentType("application/json").content("{\"assignee\":\""+expert+"\"}")).andExpect(status().isOk());
   mvc.perform(patch(appointmentPath(id,"checkout")).with(user(manager.toString()).roles("STORE_MANAGER")).with(csrf()).contentType("application/json").content("{\"paymentStatus\":\"COMPLETED\"}")).andExpect(status().isBadRequest());
@@ -85,7 +85,7 @@ class StoreManagerTests {
    mvc.perform(post("/api/manager/appointments/orders?storeId="+target).with(user(manager.toString()).roles("STORE_MANAGER")).with(csrf()).contentType("application/json").content(appointmentBody)).andExpect(status().isNotFound());
   }
   UUID query=UUID.randomUUID();db.update("INSERT INTO orders(id,tenant_id,store_id,order_type,customer_name,customer_mobile,details) VALUES (?,?,?,'QUERY','Customer','9000000091','Question')",query,tenant,store);
-  mvc.perform(get("/api/manager/appointments/orders?storeId="+store).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(jsonPath("$",hasSize(0)));
+  mvc.perform(get("/api/manager/appointments/orders?storeId="+store).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(jsonPath("$.items",hasSize(0)));
   mvc.perform(patch(appointmentPath(query,"checkout")).with(user(manager.toString()).roles("STORE_MANAGER")).with(csrf()).contentType("application/json").content("{\"paymentStatus\":\"PENDING\"}")).andExpect(status().isNotFound());
   mvc.perform(post("/api/manager/appointments/orders?storeId="+store).with(user(manager.toString()).roles("STORE_MANAGER")).with(csrf()).contentType("application/json").content(appointmentBody.replace("APPOINTMENT","QUERY"))).andExpect(status().isBadRequest());
   mvc.perform(get("/api/manager/appointments/session")).andExpect(status().isUnauthorized());
@@ -107,7 +107,7 @@ class StoreManagerTests {
   }
  }
  @Test void dashboardOrdersAreStoreScopedAndShowSalesDetails() throws Exception {
-  mvc.perform(get(path("orders",store)).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(status().isOk()).andExpect(jsonPath("$",hasSize(0)));
+  mvc.perform(get(path("orders",store)).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(status().isOk()).andExpect(jsonPath("$.items",hasSize(0)));
   mvc.perform(post(path("experts",store)).with(user(manager.toString()).roles("STORE_MANAGER")).with(csrf()).contentType("application/json").content(body("experts"))).andExpect(status().isCreated());
   UUID expert=assignment("experts");
   for(String state:new String[]{"PENDING","ASSIGNED","COMPLETED"}) {
@@ -115,7 +115,7 @@ class StoreManagerTests {
   }
   db.update("INSERT INTO orders(id,tenant_id,store_id,order_type,customer_name,customer_mobile,details,amount,appointment_at) VALUES (?,?,?,'APPOINTMENT','Other store','9000000061','Private service',999,CURRENT_TIMESTAMP)",UUID.randomUUID(),tenant,otherStore);
   db.update("INSERT INTO orders(id,tenant_id,store_id,order_type,customer_name,customer_mobile,details) VALUES (?,?,?,'QUERY','Query customer','9000000062','Question')",UUID.randomUUID(),tenant,store);
-  mvc.perform(get(path("orders",store)).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(status().isOk()).andExpect(jsonPath("$",hasSize(3))).andExpect(jsonPath("$[*].service_name",everyItem(nullValue()))).andExpect(jsonPath("$[*].amount",everyItem(is(125.50)))).andExpect(jsonPath("$[*].order_status",containsInAnyOrder("PENDING","ASSIGNED","COMPLETED"))).andExpect(jsonPath("$[*].customer_name",containsInAnyOrder("Customer PENDING","Customer ASSIGNED","Customer COMPLETED")));
+  mvc.perform(get(path("orders",store)).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(status().isOk()).andExpect(jsonPath("$.items",hasSize(3))).andExpect(jsonPath("$.items[*].service_name",everyItem(nullValue()))).andExpect(jsonPath("$.items[*].amount",everyItem(is(125.50)))).andExpect(jsonPath("$.items[*].order_status",containsInAnyOrder("PENDING","ASSIGNED","COMPLETED"))).andExpect(jsonPath("$.items[*].customer_name",containsInAnyOrder("Customer PENDING","Customer ASSIGNED","Customer COMPLETED")));
   for(UUID target:new UUID[]{otherStore,foreignStore}) mvc.perform(get(path("orders",target)).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(status().isNotFound());
   mvc.perform(get(path("orders",store))).andExpect(status().isUnauthorized());
   for(String role:new String[]{"ADMIN","RECEPTIONIST","EXPERT"}) mvc.perform(get(path("orders",store)).with(user(manager.toString()).roles(role))).andExpect(status().isForbidden());

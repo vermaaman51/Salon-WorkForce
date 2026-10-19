@@ -26,10 +26,10 @@ public class AdminRepository {
         return db.queryForObject("SELECT count(*) FROM users WHERE mobileno=? AND id<>?", Long.class, mobile, userId);
     }
     public Map<String,Object> findSession(UUID tenantId, UUID userId) {
-        return db.queryForMap("SELECT t.id AS tenant_id,t.tenant_name,u.name,u.email FROM tenant t CROSS JOIN users u WHERE t.id=? AND u.id=?", tenantId, userId);
+        return db.queryForMap("SELECT t.id AS tenant_id,t.tenant_name,t.gst_number,u.name,u.email FROM tenant t CROSS JOIN users u WHERE t.id=? AND u.id=?", tenantId, userId);
     }
     public List<Map<String,Object>> findStores(UUID tenantId) {
-        return db.queryForList("SELECT id,name,city,address FROM store WHERE tenant_id=? ORDER BY name,id", tenantId);
+        return db.queryForList("SELECT id,name,city,address,gst_number FROM store WHERE tenant_id=? ORDER BY name,id", tenantId);
     }
     public boolean storeBelongsToTenant(UUID storeId,UUID tenantId) {
         return db.queryForObject("SELECT count(*) FROM store WHERE id=? AND tenant_id=?",Long.class,storeId,tenantId)==1;
@@ -40,11 +40,13 @@ public class AdminRepository {
         if(storeId!=null){sql+=" AND store_id=?";args.add(storeId);}
         return db.queryForList(sql+" ORDER BY appointment_at DESC,id",args.toArray());
     }
-    public int insertStore(UUID id, String name, String city, String address, UUID tenantId) {
-        return db.update("INSERT INTO store(id,name,city,address,tenant_id) VALUES (?,?,?,?,?)", id, name, city, address, tenantId);
+    public String tenantGstNumber(UUID tenantId){return db.queryForObject("SELECT gst_number FROM tenant WHERE id=?",String.class,tenantId);}
+    public String storeGstNumber(UUID id,UUID tenantId){return db.queryForObject("SELECT gst_number FROM store WHERE id=? AND tenant_id=?",String.class,id,tenantId);}
+    public int insertStore(UUID id, String name, String city, String address, UUID tenantId,String gstNumber) {
+        return db.update("INSERT INTO store(id,name,city,address,tenant_id,gst_number) VALUES (?,?,?,?,?,?)", id, name, city, address, tenantId,gstNumber);
     }
-    public int updateStore(String name, String city, String address, UUID id, UUID tenantId) {
-        return db.update("UPDATE store SET name=?,city=?,address=? WHERE id=? AND tenant_id=?", name, city, address, id, tenantId);
+    public int updateStore(String name, String city, String address, UUID id, UUID tenantId,String gstNumber) {
+        return db.update("UPDATE store SET name=?,city=?,address=?,gst_number=? WHERE id=? AND tenant_id=?", name, city, address,gstNumber, id, tenantId);
     }
     public Long countStoreAssignments(UUID storeId) {
         return db.queryForObject("SELECT count(*) FROM user_role WHERE store_id=?", Long.class, storeId);

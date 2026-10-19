@@ -19,6 +19,14 @@ public class Tenant {
     @Column(name = "country")
     private String country;
 
+    @Column(name="_is_active", nullable=false) private boolean active=true;
+    @Column(name="segment_type", nullable=false) private String segmentType="BASE";
+    @Column(name="subscription_expires_at") private java.time.OffsetDateTime subscriptionExpiresAt;
+    public boolean isActive(){return active;} public void setActive(boolean value){active=value;}
+    public String getSegmentType(){return segmentType;} public void setSegmentType(String value){segmentType=value;}
+    public java.time.OffsetDateTime getSubscriptionExpiresAt(){return subscriptionExpiresAt;} public void setSubscriptionExpiresAt(java.time.OffsetDateTime value){subscriptionExpiresAt=value;}
+    @Column(name="gst_number",length=15) private String gstNumber;
+    public String getGstNumber(){return gstNumber;} public void setGstNumber(String value){gstNumber=value;}
     public Tenant() {}
 
     public UUID getId() { return id; }

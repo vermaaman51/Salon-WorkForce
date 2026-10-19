@@ -23,6 +23,7 @@ class AdminManagementTests {
   tenant=UUID.randomUUID();otherTenant=UUID.randomUUID();admin=UUID.randomUUID();store=UUID.randomUUID();foreignStore=UUID.randomUUID();UUID role=UUID.randomUUID();
   db.update("INSERT INTO tenant(id,tenant_name,username) VALUES (?,'Own organization','admin.test')",tenant);
   db.update("INSERT INTO tenant(id,tenant_name,username) VALUES (?,'Other organization','other.test')",otherTenant);
+  db.update("UPDATE tenant SET segment_type='PRO_PLUS' WHERE id=?",tenant);
   db.update("INSERT INTO users(id,name,email,mobileno,password_hash) VALUES (?,'Admin owner','admin@example.test','9000000001',?)",admin,encoder.encode("admin-test-password"));
   db.update("INSERT INTO role(id,roletype) VALUES (?,'ADMIN')",role);
   db.update("INSERT INTO user_role(id,user_id,role_id,tenant_id) VALUES (?,?,?,?)",UUID.randomUUID(),admin,role,tenant);
@@ -98,7 +99,7 @@ class AdminManagementTests {
   db.update("UPDATE orders SET service='Hair, Nail' WHERE tenant_id=? AND customer_name='Paid customer'",tenant);
   db.update("INSERT INTO orders(id,tenant_id,store_id,order_type,customer_name,customer_mobile,details,amount,appointment_at) VALUES (?,?,?,'APPOINTMENT','Foreign customer','9000000072','Private',999,?)",UUID.randomUUID(),otherTenant,foreignStore,date.atTime(12,0));
   db.update("INSERT INTO orders(id,tenant_id,store_id,order_type,customer_name,customer_mobile,details,created_at) VALUES (?,?,?,'QUERY','Query','9000000073','Question',?)",UUID.randomUUID(),tenant,store,date.atTime(12,0));
-  mvc.perform(get("/api/admin/sales").with(user(admin.toString()).roles("ADMIN"))).andExpect(status().isOk()).andExpect(jsonPath("$.orders",hasSize(2))).andExpect(jsonPath("$.orders[*].customer_name",containsInAnyOrder("Paid customer","Pending customer"))).andExpect(jsonPath("$.orders[0].service_name").value(nullValue())).andExpect(jsonPath("$.orders[1].service_name").value("Hair, Nail")).andExpect(jsonPath("$.orders[*].amount",containsInAnyOrder(250.50,400.0))).andExpect(jsonPath("$.orders[0].assignee").doesNotExist()).andExpect(jsonPath("$.orders[0].expert_name").doesNotExist());
+  mvc.perform(get("/api/admin/sales").with(user(admin.toString()).roles("ADMIN"))).andExpect(status().isOk()).andExpect(jsonPath("$.orders",hasSize(2))).andExpect(jsonPath("$.orders[*].customer_name",containsInAnyOrder("Paid customer","Pending customer"))).andExpect(jsonPath("$.orders[?(@.customer_name == 'Paid customer')].service_name",contains("Hair, Nail"))).andExpect(jsonPath("$.orders[?(@.customer_name == 'Pending customer')].service_name",contains(nullValue()))).andExpect(jsonPath("$.orders[*].amount",containsInAnyOrder(250.50,400.0))).andExpect(jsonPath("$.orders[0].assignee").doesNotExist()).andExpect(jsonPath("$.orders[0].expert_name").doesNotExist());
   mvc.perform(get("/api/admin/sales")).andExpect(status().isUnauthorized());
   for(String role:new String[]{"STORE_MANAGER","RECEPTIONIST","EXPERT"}) mvc.perform(get("/api/admin/sales").with(user(admin.toString()).roles(role))).andExpect(status().isForbidden());
   db.update("DELETE FROM user_role WHERE user_id=? AND store_id IS NULL",admin);
@@ -164,4 +165,3 @@ class AdminManagementTests {
   mvc.perform(delete("/api/admin/managers/"+UUID.randomUUID()).with(user(UUID.randomUUID().toString()).roles("STORE_MANAGER")).with(csrf())).andExpect(status().isForbidden());
  }
 }
-

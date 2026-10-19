@@ -16,8 +16,8 @@ public class AdminController {
         this.service=service;
     }
     @GetMapping("/session")
-    public Object session(Authentication auth) {
-        return service.session(auth);
+    public Object session(Authentication auth,jakarta.servlet.http.HttpSession session) {
+        var result=service.session(auth);result.put("subscriptions",session.getAttribute("subscriptionSnapshot")==null?java.util.List.of():session.getAttribute("subscriptionSnapshot"));return result;
     }
     @GetMapping("/stores")
     public Object stores(Authentication auth) {
@@ -28,8 +28,8 @@ public class AdminController {
         @RequestParam(required=false) @org.springframework.format.annotation.DateTimeFormat(iso=org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate date,
         @RequestParam(name="from",required=false) @org.springframework.format.annotation.DateTimeFormat(iso=org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
         @RequestParam(name="to",required=false) @org.springframework.format.annotation.DateTimeFormat(iso=org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to,
-        @RequestParam(required=false) UUID storeId) {
-        return service.sales(auth,date,from,to,storeId);
+        @RequestParam(required=false) UUID storeId,@RequestParam(defaultValue="0") int page) {
+        return service.sales(auth,date,from,to,storeId,page);
     }
     @PostMapping("/stores")
     @ResponseStatus(HttpStatus.CREATED)

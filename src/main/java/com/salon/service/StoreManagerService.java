@@ -18,10 +18,10 @@ import org.springframework.http.HttpStatus;
 @PreAuthorize("hasRole('STORE_MANAGER')")
 public class StoreManagerService {
     private final StoreManagerRepository repository;
-    private final PasswordEncoder passwords;
-    public StoreManagerService(StoreManagerRepository repository, PasswordEncoder passwords) {
+    private final PasswordEncoder passwords;private final TenantPlans plans;private final com.salon.repository.OrderPages pages;private final ReportDates dates;
+    public StoreManagerService(StoreManagerRepository repository, PasswordEncoder passwords,TenantPlans plans,com.salon.repository.OrderPages pages,ReportDates dates) {
         this.repository=repository;
-        this.passwords=passwords;
+        this.passwords=passwords;this.plans=plans;this.pages=pages;this.dates=dates;
     }
     private String role(String category) {
         return switch(category) {
@@ -61,12 +61,19 @@ public class StoreManagerService {
     }
     public Object orders(Authentication auth,UUID storeId) {
         UUID tenant=scope(auth,storeId);
-        return repository.findOrders(storeId, tenant);
+        return pages.list(tenant,storeId,com.salon.repository.OrderPages.Query.first(),true,null,null,false);
+    }
+    public Object orders(Authentication auth,UUID storeId,com.salon.repository.OrderPages.Query query){return pages.list(scope(auth,storeId),storeId,query,true,null,null,false);}
+    public Object sales(Authentication auth,UUID storeId,com.salon.repository.OrderPages.Query query,java.time.LocalDate from,java.time.LocalDate to){
+        UUID tenant=scope(auth,storeId);
+        var range=dates.resolve(query.date(),from,to);
+        return pages.list(tenant,storeId,query,true,range.from().atStartOfDay(),range.to().plusDays(1).atStartOfDay(),false);
     }
     @Transactional
     public void create(Authentication auth,String category,UUID storeId,StaffInput input) {
         UUID tenant=scope(auth,storeId);
         String type=role(category);
+        if(Roles.RECEPTIONIST.equals(type))plans.reserve(tenant,type);
         validate(input,null,type);
         UUID user=UUID.randomUUID();
         repository.insertUser(user, input.name().trim(), input.email().trim().toLowerCase(Locale.ROOT), input.mobileNo(), input.address().trim(), input.password()==null||input.password().isBlank()?null:passwords.encode(input.password()));
@@ -95,4 +102,3 @@ public class StoreManagerService {
         repository.deleteStaffAssignment(id, storeId, tenant);
     }
 }
-

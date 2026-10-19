@@ -125,3 +125,14 @@ footer.copyright{display:block;text-align:center;font-size:11px;letter-spacing:.
 .manager-workspace.dashboard-active #activity-panel .table-card{min-height:auto;overflow-x:auto;overscroll-behavior:auto;scrollbar-gutter:auto}
 .manager-workspace.dashboard-active #activity-panel th{position:static}
 @media(max-width:700px){.manager-workspace.dashboard-active main{flex:none;min-height:calc(100dvh - 120px)}}
+
+/* Store Manager summary cards also select the activity list below. */
+.manager-workspace .manager-activity-cards .activity-card{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-width:0;padding:24px;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.manager-workspace .activity-card>span{color:#74806f;font-size:12px;font-weight:700}
+.manager-workspace .activity-card>strong{font:38px Georgia;margin:16px 0}
+.manager-workspace .activity-card[aria-selected="true"]{background:var(--green);color:#f3f6e7;border-color:var(--green)}
+.manager-workspace .activity-card[aria-selected="true"]>span{color:#c6d2bc}
+.manager-workspace.dashboard-active .manager-activity-cards .activity-card{padding:10px 16px}
+.manager-workspace.dashboard-active .activity-card>strong{font-size:26px;margin:6px 0}
+@media(max-width:700px){.manager-workspace.dashboard-active .manager-activity-cards .activity-card{padding:10px 8px}.manager-workspace .activity-card>span{font-size:10px}.manager-workspace.dashboard-active .activity-card>strong{font-size:clamp(13px,3.9vw,21px);white-space:nowrap}}
+@media(max-height:700px) and (min-width:701px){.manager-workspace.dashboard-active .manager-activity-cards .activity-card{padding:8px 14px}.manager-workspace.dashboard-active .activity-card>strong{font-size:24px;margin:4px 0}}

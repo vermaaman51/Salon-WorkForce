@@ -22,13 +22,10 @@ public class ReceptionRepository {
         return db.queryForMap("SELECT name,email FROM users WHERE id=?", userId);
     }
     public List<Map<String,Object>> findAssignedStores(UUID userId,String role) {
-        return db.queryForList("SELECT DISTINCT s.id,s.name,t.tenant_name FROM user_role ur JOIN role r ON r.id=ur.role_id JOIN store s ON s.id=ur.store_id AND s.tenant_id=ur.tenant_id JOIN tenant t ON t.id=s.tenant_id WHERE ur.user_id=? AND r.roletype=? ORDER BY s.name,s.id", userId,role);
+        return db.queryForList("SELECT DISTINCT s.id,s.name,t.tenant_name,t.segment_type FROM user_role ur JOIN role r ON r.id=ur.role_id JOIN store s ON s.id=ur.store_id AND s.tenant_id=ur.tenant_id JOIN tenant t ON t.id=s.tenant_id WHERE ur.user_id=? AND r.roletype=? ORDER BY s.name,s.id", userId,role);
     }
     public List<Map<String,Object>> findExperts(UUID storeId, UUID tenantId) {
         return db.queryForList("SELECT ur.id,u.name FROM user_role ur JOIN role r ON r.id=ur.role_id JOIN users u ON u.id=ur.user_id WHERE ur.store_id=? AND ur.tenant_id=? AND r.roletype='EXPERT' ORDER BY u.name,ur.id", storeId, tenantId);
-    }
-    public List<Map<String,Object>> findOrders(UUID storeId, UUID tenantId,boolean appointmentsOnly) {
-        return db.queryForList("SELECT * FROM orders WHERE store_id=? AND tenant_id=?"+(appointmentsOnly?" AND order_type='APPOINTMENT'":"")+" ORDER BY created_at DESC,id", storeId, tenantId);
     }
     public int insertOrder(UUID id, UUID tenantId, UUID storeId, String orderType, String customerName, String mobile, String details, String service, BigDecimal amount, LocalDateTime appointmentAt) {
         return db.update("INSERT INTO orders(id,tenant_id,store_id,order_type,customer_name,customer_mobile,details,service,amount,appointment_at) VALUES (?,?,?,?,?,?,?,?,?,?)", id, tenantId, storeId, orderType, customerName, mobile, details, service, amount, appointmentAt);

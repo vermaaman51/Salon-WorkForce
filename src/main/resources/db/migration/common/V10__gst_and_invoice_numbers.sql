@@ -1,0 +1,6 @@
+ALTER TABLE tenant ADD COLUMN gst_number VARCHAR(15);
+ALTER TABLE store ADD COLUMN gst_number VARCHAR(15);
+CREATE TABLE order_invoice (
+ invoice_number BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ order_id UUID NOT NULL UNIQUE REFERENCES orders(id)
+);

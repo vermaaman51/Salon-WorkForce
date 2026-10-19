@@ -9,9 +9,9 @@ import com.salon.repository.AccountRepository;
 @Service
 @Profile("!legacy")
 public class AccountUserDetailsService implements UserDetailsService {
-    private final AccountRepository accounts;
-    public AccountUserDetailsService(AccountRepository accounts) {
-        this.accounts=accounts;
+    private final AccountRepository accounts; private final TenantSubscriptions subscriptions;
+    public AccountUserDetailsService(AccountRepository accounts, TenantSubscriptions subscriptions) {
+        this.accounts=accounts; this.subscriptions=subscriptions;
     }
     @Override public UserDetails loadUserByUsername(String mobile) {
         if(mobile==null||!mobile.matches("[0-9]{10}")) throw new UsernameNotFoundException("Mobile number must contain exactly 10 digits.");
@@ -19,8 +19,8 @@ public class AccountUserDetailsService implements UserDetailsService {
         if(rows.size()!=1 || rows.get(0).get("password_hash")==null) throw new UsernameNotFoundException("Account not found");
         var row=rows.get(0);
         UUID userId=(UUID)row.get("id");
-        var roles=accounts.findRoles(userId);
+        var roles=new java.util.ArrayList<>(accounts.findRoles(userId)); roles.removeIf("ROOT"::equals); if(subscriptions.isRoot(userId)) roles.add("ROOT");
         return User.withUsername(userId.toString()).password(row.get("password_hash").toString())
-        .roles(roles.toArray(String[]::new)).build();
+        .roles(roles.toArray(String[]::new)).disabled(!subscriptions.allowed(userId)).build();
     }
 }

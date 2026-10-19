@@ -22,6 +22,8 @@ public class Store {
     @Column(name = "name")
     private String name;
 
+    @Column(name="gst_number",length=15) private String gstNumber;
+    public String getGstNumber(){return gstNumber;} public void setGstNumber(String value){gstNumber=value;}
     public Store() {}
 
     public UUID getId() { return id; }

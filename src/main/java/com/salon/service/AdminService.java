@@ -17,13 +17,12 @@ import org.springframework.http.HttpStatus;
 @Service
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminService {
-    @org.springframework.beans.factory.annotation.Value("${TZ:Asia/Kolkata}")
-    private String salesTimezone;
     private final AdminRepository repository;
-    private final PasswordEncoder passwords;
-    public AdminService(AdminRepository repository,PasswordEncoder passwords) {
-        this.repository=repository;
-        this.passwords=passwords;
+    private final ReportDates reportDates;
+    private final PasswordEncoder passwords; private final TenantPlans plans;private final com.salon.repository.OrderPages pages;
+    public AdminService(AdminRepository repository,PasswordEncoder passwords,TenantPlans plans,com.salon.repository.OrderPages pages,ReportDates reportDates) {
+        this.repository=repository;this.reportDates=reportDates;
+        this.passwords=passwords;this.plans=plans;this.pages=pages;
     }
     private UUID tenant(Authentication auth) {
         var tenants=repository.findAdminTenants(CurrentUser.id(auth));
@@ -51,34 +50,29 @@ public class AdminService {
         : repository.countOtherMobile(mobile.trim(), user);
         if(count>0)throw new ResponseStatusException(HttpStatus.CONFLICT,"That mobile number already belongs to an account.");
     }
-    public Object session(Authentication auth) {
+    public Map<String,Object> session(Authentication auth) {
         UUID t=tenant(auth);
-        return repository.findSession(t, CurrentUser.id(auth));
+        var result=new LinkedHashMap<String,Object>(repository.findSession(t, CurrentUser.id(auth)));result.put("plan",plans.metadata(t));return result;
     }
     public Object stores(Authentication auth) {
         return repository.findStores(tenant(auth));
     }
-    public Object sales(Authentication auth,java.time.LocalDate requestedDate,java.time.LocalDate from,java.time.LocalDate to,UUID storeId) {
+    public Object sales(Authentication auth,java.time.LocalDate requestedDate,java.time.LocalDate from,java.time.LocalDate to,UUID storeId) {return sales(auth,requestedDate,from,to,storeId,0);}
+    public Object sales(Authentication auth,java.time.LocalDate requestedDate,java.time.LocalDate from,java.time.LocalDate to,UUID storeId,int page) {
         UUID tenantId=tenant(auth);
-        var zone=java.time.ZoneId.of(salesTimezone);
-        var today=java.time.LocalDate.now(zone);
-        var minDate=today.minusMonths(1);
-        if(requestedDate!=null&&(from!=null||to!=null))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Use either a date or a From/To range.");
-        if((from==null)!=(to==null))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Select both From and To dates.");
-        if(from==null){from=requestedDate==null?today:requestedDate;to=from;}
-        if(from.isBefore(minDate)||from.isAfter(to)||to.isAfter(today)||java.time.temporal.ChronoUnit.DAYS.between(from,to)>=30)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Choose dates within the past month and a range of up to 30 days, including both dates.");
+        var range=reportDates.resolve(requestedDate,from,to);from=range.from();to=range.to();var today=range.today();var minDate=range.minDate();var zone=range.zone();
         if(storeId!=null&&!repository.storeBelongsToTenant(storeId,tenantId))throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Store not found.");
-        return Map.of("date",from.toString(),"from",from.toString(),"to",to.toString(),"today",today.toString(),"minDate",minDate.toString(),"maxRangeDays",30,"timezone",zone.getId(),"storeId",storeId==null?"":storeId.toString(),"orders",
-            repository.findDailySales(tenantId,from.atStartOfDay(),to.plusDays(1).atStartOfDay(),storeId));
-    }
+        var result=pages.list(tenantId,storeId,new com.salon.repository.OrderPages.Query(page,"total",null,null,null,null,null),true,from.atStartOfDay(),to.plusDays(1).atStartOfDay(),true);
+        result.put("orders",result.remove("items"));result.put("date",from.toString());result.put("from",from.toString());result.put("to",to.toString());result.put("today",today.toString());result.put("minDate",minDate.toString());result.put("maxRangeDays",30);result.put("timezone",zone.getId());result.put("storeId",storeId==null?"":storeId.toString());return result;    }
+    @Transactional
     public void addStore(Authentication auth,StoreInput input) {
-        repository.insertStore(UUID.randomUUID(), input.name().trim(), input.city().trim(), input.address().trim(), tenant(auth));
+        UUID t=tenant(auth);plans.reserve(t,"stores");repository.insertStore(UUID.randomUUID(), input.name().trim(), input.city().trim(), input.address().trim(), t,com.salon.utility.GstNumber.normalize(input.gstNumber()==null?repository.tenantGstNumber(t):input.gstNumber()));
     }
     @Transactional
     public void editStore(Authentication auth,UUID id,StoreInput input) {
         UUID t=tenant(auth);
         store(id,t);
-        repository.updateStore(input.name().trim(), input.city().trim(), input.address().trim(), id, t);
+        repository.updateStore(input.name().trim(), input.city().trim(), input.address().trim(), id, t,com.salon.utility.GstNumber.normalize(input.gstNumber()==null?repository.storeGstNumber(id,t):input.gstNumber()));
     }
     @Transactional
     public void deleteStore(Authentication auth,UUID id) {
@@ -93,6 +87,7 @@ public class AdminService {
     @Transactional
     public void addManager(Authentication auth,ManagerInput input) {
         UUID t=tenant(auth);
+        plans.reserve(t,"STORE_MANAGER");
         store(input.storeId(),t);
         password(input.password(),true);
         uniqueMobile(input.mobileNo(),null);
@@ -132,4 +127,3 @@ public class AdminService {
         repository.deleteUnassignedUser(user);
     }
 }
-

@@ -16,9 +16,9 @@ import org.springframework.http.HttpStatus;
 @Service
 public class ReceptionService {
     private static final Set<String> SERVICES=Set.of("Hair","Nail","Facial","Massage","Makeup","Waxing","Skincare");
-    private final ReceptionRepository repository;
-    public ReceptionService(ReceptionRepository repository) {
-        this.repository=repository;
+    private final ReceptionRepository repository;private final com.salon.repository.OrderPages pages;
+    public ReceptionService(ReceptionRepository repository,com.salon.repository.OrderPages pages) {
+        this.repository=repository;this.pages=pages;
     }
     private UUID scope(Authentication auth,UUID store,String role) {
         var rows=repository.findWorkflowTenants(CurrentUser.id(auth), store,role);
@@ -43,9 +43,9 @@ public class ReceptionService {
         UUID tenant=scope(auth,storeId,role);
         return repository.findExperts(storeId, tenant);
     }
-    private Object orders(Authentication auth,UUID storeId,String role) {
+    private Object orders(Authentication auth,UUID storeId,String role,com.salon.repository.OrderPages.Query query) {
         UUID tenant=scope(auth,storeId,role);
-        return repository.findOrders(storeId, tenant,role.equals(Roles.STORE_MANAGER));
+        return pages.list(tenant,storeId,query,role.equals(Roles.STORE_MANAGER),null,null,false);
     }
     private Object create(Authentication auth,UUID storeId,NewOrder input,String role) {
         UUID tenant=scope(auth,storeId,role);
@@ -105,9 +105,11 @@ public class ReceptionService {
     @PreAuthorize("hasRole('STORE_MANAGER')")
     public Object managerExperts(Authentication auth,UUID storeId) { return experts(auth,storeId,Roles.STORE_MANAGER); }
     @PreAuthorize("hasRole('RECEPTIONIST')")
-    public Object orders(Authentication auth,UUID storeId) { return orders(auth,storeId,Roles.RECEPTIONIST); }
+    public Object orders(Authentication auth,UUID storeId) { return orders(auth,storeId,Roles.RECEPTIONIST,com.salon.repository.OrderPages.Query.first()); }
     @PreAuthorize("hasRole('STORE_MANAGER')")
-    public Object managerOrders(Authentication auth,UUID storeId) { return orders(auth,storeId,Roles.STORE_MANAGER); }
+    public Object managerOrders(Authentication auth,UUID storeId) { return orders(auth,storeId,Roles.STORE_MANAGER,com.salon.repository.OrderPages.Query.first()); }
+    @PreAuthorize("hasRole('RECEPTIONIST')") public Object orders(Authentication auth,UUID storeId,com.salon.repository.OrderPages.Query query){return orders(auth,storeId,Roles.RECEPTIONIST,query);}
+    @PreAuthorize("hasRole('STORE_MANAGER')") public Object managerOrders(Authentication auth,UUID storeId,com.salon.repository.OrderPages.Query query){return orders(auth,storeId,Roles.STORE_MANAGER,query);}
     @PreAuthorize("hasRole('RECEPTIONIST')")
     @Transactional
     public Object create(Authentication auth,UUID storeId,NewOrder input) { return create(auth,storeId,input,Roles.RECEPTIONIST); }
@@ -133,4 +135,3 @@ public class ReceptionService {
     @Transactional
     public void managerPaid(Authentication auth,UUID id,UUID storeId,Payment input) { paid(auth,id,storeId,input,Roles.STORE_MANAGER); }
 }
-

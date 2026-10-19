@@ -1,0 +1,11 @@
+ALTER TABLE orders ADD COLUMN modified_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE order_history ADD COLUMN modified_at TIMESTAMP WITH TIME ZONE;
+DROP TRIGGER orders_history_capture;
+CREATE TRIGGER orders_history_capture AFTER INSERT, UPDATE, DELETE ON orders FOR EACH ROW CALL 'com.salon.OrderHistoryTestTrigger';
+UPDATE orders o SET modified_at=COALESCE((SELECT MAX(h.snapshot_at) FROM order_history h WHERE h.order_id=o.id),CURRENT_TIMESTAMP);
+ALTER TABLE orders ALTER COLUMN modified_at SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE orders ALTER COLUMN modified_at SET NOT NULL;
+CREATE TRIGGER orders_modified_at BEFORE INSERT, UPDATE ON orders FOR EACH ROW CALL 'com.salon.OrderModifiedTestTrigger';
+CREATE INDEX orders_created_at_idx ON orders(created_at);
+CREATE INDEX orders_tenant_store_modified_idx ON orders(tenant_id,store_id,modified_at DESC,id DESC);
+CREATE INDEX orders_tenant_modified_idx ON orders(tenant_id,modified_at DESC,id DESC);

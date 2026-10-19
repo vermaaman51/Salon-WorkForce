@@ -19,15 +19,19 @@ public class WorkspaceController {
         return "redirect:/workspace";
     }
     @GetMapping("/workspace") Object workspace(Authentication auth) {
+        if(auth.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("ROLE_ROOT"))) return "redirect:/root";
         if(auth.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("ROLE_"+Roles.ADMIN))) return "redirect:/dashboard";
         if(auth.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("ROLE_"+Roles.STORE_MANAGER))) return "redirect:/manager/dashboard";
         if(auth.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("ROLE_"+Roles.RECEPTIONIST))) return "redirect:/reception/dashboard";
         return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body("<h1>Signed in</h1><p>Your account does not have ADMIN access. Contact your administrator.</p><a href='/login'>Sign in</a>");
     }
     @GetMapping("/login")
-    @ResponseBody ResponseEntity<Resource> login() {
+    @ResponseBody ResponseEntity<Resource> login(Authentication auth) {
+        if(auth!=null && auth.isAuthenticated() && !(auth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken))
+            return ResponseEntity.status(HttpStatus.FOUND).location(java.net.URI.create("/workspace")).cacheControl(CacheControl.noStore()).build();
         return html("login.html");
     }
+    @GetMapping("/root") @ResponseBody ResponseEntity<Resource> root() { return html("root.html"); }
     @GetMapping("/dashboard")
     @ResponseBody ResponseEntity<Resource> dashboard() {
         return html("admin.html");

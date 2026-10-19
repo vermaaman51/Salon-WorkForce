@@ -18,10 +18,13 @@ public class OrderHistoryTestTrigger implements Trigger {
     @Override public void fire(Connection connection,Object[] oldRow,Object[] newRow) throws SQLException {
         if(immutable)throw new SQLException("order_history is append-only","55000");
         Object[] row=newRow==null?oldRow:newRow;
-        String[] names={"id","tenant_id","store_id","assignee","order_type","order_status","payment_status","customer_name","customer_mobile","details","service","amount","appointment_at","created_at","payment_mode"};
-        try(var insert=connection.prepareStatement("INSERT INTO order_history(order_id,tenant_id,store_id,assignee,order_type,order_status,payment_status,customer_name,customer_mobile,details,service,amount,appointment_at,created_at,payment_mode,event_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
-            for(int i=0;i<names.length;i++)insert.setObject(i+1,row[columns.get(names[i])]);
-            insert.setString(16,newRow==null?"DELETE":oldRow==null?"INSERT":"UPDATE");
+        String[] baseNames={"id","tenant_id","store_id","assignee","order_type","order_status","payment_status","customer_name","customer_mobile","details","service","amount","appointment_at","created_at","payment_mode"};
+        var names=new ArrayList<>(Arrays.asList(baseNames));if(columns.containsKey("modified_at"))names.add("modified_at");
+        if(columns.containsKey("payment_completed_at"))names.add("payment_completed_at");
+        String sql="INSERT INTO order_history(order_id,"+String.join(",",names.subList(1,names.size()))+",event_type) VALUES ("+String.join(",",Collections.nCopies(names.size()+1,"?"))+")";
+        try(var insert=connection.prepareStatement(sql)) {
+            for(int i=0;i<names.size();i++)insert.setObject(i+1,row[columns.get(names.get(i))]);
+            insert.setString(names.size()+1,newRow==null?"DELETE":oldRow==null?"INSERT":"UPDATE");
             insert.executeUpdate();
         }
     }

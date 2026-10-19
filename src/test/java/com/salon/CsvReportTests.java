@@ -1,0 +1,40 @@
+package com.salon;
+
+import java.time.*;
+import java.util.*;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.http.HttpHeaders;
+import com.salon.service.CsvReportService;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
+import static org.assertj.core.api.Assertions.*;
+
+// Streaming runs on another thread, so fixture inserts must be committed before requests.
+@SpringBootTest(properties="spring.datasource.url=jdbc:h2:mem:csv_exports;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE")
+@AutoConfigureMockMvc
+class CsvReportTests {
+ @Autowired MockMvc mvc;@Autowired JdbcTemplate db;
+ UUID tenant,store,secondStore,foreignTenant,foreignStore,admin,manager;
+ LocalDate today;
+ @BeforeEach void setup(){today=LocalDate.now(ZoneId.of("Asia/Kolkata"));tenant=UUID.randomUUID();foreignTenant=UUID.randomUUID();store=UUID.randomUUID();secondStore=UUID.randomUUID();foreignStore=UUID.randomUUID();db.update("INSERT INTO tenant(id,tenant_name,segment_type) VALUES (?,'Export tenant','PRO_PLUS'),(?,'Other tenant','PRO_PLUS')",tenant,foreignTenant);db.update("INSERT INTO store(id,name,tenant_id) VALUES (?,'First store',?),(?,'Second store',?),(?,'Foreign store',?)",store,tenant,secondStore,tenant,foreignStore,foreignTenant);admin=account("ADMIN",null);manager=account("STORE_MANAGER",store);}
+ UUID account(String type,UUID assignedStore){UUID user=UUID.randomUUID(),role=UUID.randomUUID();db.update("INSERT INTO users(id,name) VALUES (?,'Report user')",user);db.update("INSERT INTO role(id,roletype) VALUES (?,?)",role,type);db.update("INSERT INTO user_role(id,user_id,role_id,store_id,tenant_id) VALUES (?,?,?,?,?)",UUID.randomUUID(),user,role,assignedStore,tenant);return user;}
+ void order(UUID selected,String name,LocalDateTime time){UUID scope=selected.equals(foreignStore)?foreignTenant:tenant;db.update("INSERT INTO orders(id,tenant_id,store_id,order_type,customer_name,customer_mobile,details,service,amount,appointment_at) VALUES (?,?,?,'APPOINTMENT',?,'9876543210','Details','Hair',123.45,?)",UUID.randomUUID(),scope,selected,name,time);}
+ String download(String url,UUID user,String role)throws Exception{MvcResult pending=mvc.perform(get(url).with(user(user.toString()).roles(role))).andExpect(request().asyncStarted()).andReturn();pending.getAsyncResult(15000);return mvc.perform(asyncDispatch(pending)).andExpect(status().isOk()).andExpect(content().contentTypeCompatibleWith("text/csv")).andExpect(header().string(HttpHeaders.CACHE_CONTROL,"no-store")).andExpect(header().exists(HttpHeaders.CONTENT_DISPOSITION)).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);}
+ @Test void adminExportsFullSelectedDateRangeAcrossAllStores()throws Exception{for(int i=0;i<41;i++)order(store,"Today row "+i,today.atTime(12,0));order(secondStore,"Yesterday second",today.minusDays(1).atTime(23,59,59));order(secondStore,"Today boundary",today.atStartOfDay());order(store,"Before range",today.minusDays(2).atTime(23,59));order(store,"Tomorrow excluded",today.plusDays(1).atStartOfDay());order(foreignStore,"Foreign excluded",today.atTime(12,0));String csv=download("/api/admin/sales/export?from="+today.minusDays(1)+"&to="+today+"&page=1&size=1",admin,"ADMIN");assertThat(csv).startsWith("\uFEFF\"Store\"").contains("Yesterday second","Today boundary","Today row 40").doesNotContain("Before range","Tomorrow excluded","Foreign excluded");assertThat(csv.lines().count()).isEqualTo(44);}
+ @Test void adminExportsOnlySelectedStoreAndValidatesDates()throws Exception{order(store,"First excluded",today.atTime(12,0));order(secondStore,"Second included",today.atTime(12,0));String csv=download("/api/admin/sales/export?from="+today+"&to="+today+"&storeId="+secondStore,admin,"ADMIN");assertThat(csv).contains("Second included").doesNotContain("First excluded");for(String query:new String[]{"from="+today,"from="+today+"&to="+today.minusDays(1),"from="+today+"&to="+today.plusDays(1),"from="+today.minusDays(30)+"&to="+today})mvc.perform(get("/api/admin/sales/export?"+query).with(user(admin.toString()).roles("ADMIN"))).andExpect(status().isBadRequest());mvc.perform(get("/api/admin/sales/export?storeId="+foreignStore).with(user(admin.toString()).roles("ADMIN"))).andExpect(status().isNotFound());}
+ @Test void managerCanOnlyExportTodayForAssignedStoreDespiteForgedDates()throws Exception{order(store,"Today start",today.atStartOfDay());order(store,"Today end",today.atTime(23,59,59));order(store,"Yesterday excluded",today.minusDays(1).atTime(23,59,59));order(store,"Tomorrow excluded",today.plusDays(1).atStartOfDay());order(secondStore,"Unassigned excluded",today.atTime(12,0));String csv=download("/api/manager/sales/export?storeId="+store+"&from="+today.minusDays(20)+"&to="+today.plusDays(2),manager,"STORE_MANAGER");assertThat(csv).contains("Today start","Today end").doesNotContain("Yesterday excluded","Tomorrow excluded","Unassigned excluded");mvc.perform(get("/api/manager/sales/export?storeId="+secondStore).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(status().isNotFound());}
+ @ParameterizedTest @ValueSource(strings={"BASE","PRO"}) void bothEndpointsRejectNonProPlusPlans(String segment)throws Exception{db.update("UPDATE tenant SET segment_type=? WHERE id=?",segment,tenant);mvc.perform(get("/api/admin/sales/export").with(user(admin.toString()).roles("ADMIN"))).andExpect(status().isForbidden());mvc.perform(get("/api/manager/sales/export?storeId="+store).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(status().isForbidden());}
+ @Test void inactiveAndExpiredSubscriptionsRejectExports()throws Exception{db.update("UPDATE tenant SET _is_active=FALSE WHERE id=?",tenant);mvc.perform(get("/api/admin/sales/export").with(user(admin.toString()).roles("ADMIN"))).andExpect(status().isForbidden());db.update("UPDATE tenant SET _is_active=TRUE,subscription_expires_at=DATEADD('HOUR',-1,CURRENT_TIMESTAMP) WHERE id=?",tenant);mvc.perform(get("/api/manager/sales/export?storeId="+store).with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(status().isForbidden());}
+ @Test void exportPermissionUsesLivePlanAfterDowngrade()throws Exception{order(store,"Today",today.atTime(12,0));assertThat(download("/api/admin/sales/export",admin,"ADMIN")).contains("Today");db.update("UPDATE tenant SET segment_type='PRO' WHERE id=?",tenant);mvc.perform(get("/api/admin/sales/export").with(user(admin.toString()).roles("ADMIN"))).andExpect(status().isForbidden());}
+ @Test void rolesAndAuthenticationAreRequired()throws Exception{mvc.perform(get("/api/admin/sales/export")).andExpect(status().isUnauthorized());mvc.perform(get("/api/admin/sales/export").with(user(manager.toString()).roles("STORE_MANAGER"))).andExpect(status().isForbidden());mvc.perform(get("/api/manager/sales/export?storeId="+store).with(user(admin.toString()).roles("ADMIN"))).andExpect(status().isForbidden());mvc.perform(get("/api/manager/sales/export?storeId="+store).with(user(manager.toString()).roles("RECEPTIONIST"))).andExpect(status().isForbidden());}
+ @Test void csvQuotesAndNeutralizesSpreadsheetFormulas(){assertThat(CsvReportService.cell("A, \"quoted\"\nname")).isEqualTo("\"A, \"\"quoted\"\"\nname\"");assertThat(CsvReportService.cell(" =HYPERLINK(\"bad\")")).isEqualTo("\"' =HYPERLINK(\"\"bad\"\")\"");assertThat(CsvReportService.cell(null)).isEqualTo("\"\"");}
+}
